@@ -12,7 +12,7 @@ var timer;
 var baseMQTT = 'home';
 var subscribeTopic = '+/+/+/set';
 
-if (!fs.existsSync(filename)) {fs.writeFileSync(filename, "")}
+if (!fs.existsSync(filename)) {fs.writeFileSync(filename, "");}
 
 var tail = new Tail(filename, '\n');
 tail.on('line', function(data) {
