@@ -1,11 +1,18 @@
 # wink-mqtt
 Enable local-control of Rooted Wink Hub running 2.19 firmware with MQTT. Integrates nicely with Home Assistant MQTT lights, switches, sensors, etc. https://home-assistant.io/
 
-The Wink Hub version 2.19 firmware includes Node, but not npm. You will need to run "npm install" on a machine with npm and then copy the files to the Wink with SSH. i.e. ```scp -r ~/wink-mqtt/ root@[wink hub ip address]:/opt/local_control/wink-mqtt/```
+The Wink Hub version 2.19 firmware includes NodeJS, but not npm. You will need to run "npm install" on a machine with npm and then copy the files to the Wink with SSH. i.e. ```scp -r ~/wink-mqtt/ root@[wink hub ip address]:/opt/local_control/wink-mqtt/```
 
-For information on rooting the Wink Hub with the UART method https://mattcarrier.com/post/hacking-the-winkhub-part-1/
+##How do I root the Wink Hub?
+Matt Carrier has a good artical on rooting and getting SSH access to the Wink Hub with the UART method https://mattcarrier.com/post/hacking-the-winkhub-part-1/
 
-wink-mqttt uses "aprontest" on the Wink Hub to communicate with the Z-Wave, Zigbee and lutron radios. Each paired device is given a MasterID. wink-hub subscribes to an MQTT server for 'set' events. Topics are organized by 'home/[MASTERID]/[ATTRIBUTE]/set' ```mosquitto_pub -t 'home/20/3/set' -v 'TRUE'```
+##How it works
+wink-mqttt uses the "aprontest" binary on the Wink Hub to communicate with the Z-Wave, Zigbee and lutron radios. Each paired device is given a MasterID. wink-hub subscribes to an MQTT server for 'set' events. Topics are organized by 'home/[MASTERID]/[ATTRIBUTE]/set' ```mosquitto_pub -t 'home/20/3/set' -v 'TRUE'```
 To view MasterID and attribues you can run ```aprontest -l``` then ```aprontest -l -m20```
 
-wink-mqtt tails the log file(there is probably a much better way) for updates and then querys the sqllite3 database /database/apron.db for the current values of the devices
+wink-mqtt tails the log file(there is probably a much better way) for state change messages and then querys the sqllite3 database /database/apron.db for the current values of the devices, those updates are then publised back to the MQTT server 'home/MASTERID/ATTRIBUTE' with their current value.
+
+##Why the Wink Hub?
+It's cheap, rootable and has Z-Wave, Zigbee, Lutron, Wifi and Bluetooth radios.
+
+Please feel free to contribute, this is working but by no means a perfect solution.
