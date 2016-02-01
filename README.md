@@ -1,10 +1,12 @@
 # wink-mqtt
 Enable local-control of Rooted Wink Hub running 2.19 firmware with MQTT. Integrates nicely with Home Assistant MQTT lights, switches, sensors, etc. https://home-assistant.io/
 
-The Wink Hub version 2.19 firmware includes NodeJS, but not npm. You will need to run "npm install" on a machine with npm and then copy the files to the Wink with SSH. i.e. ```scp -r ~/wink-mqtt/ root@[wink hub ip address]:/opt/local_control/wink-mqtt/```
+The Wink Hub version 2.19 firmware includes NodeJS, but not npm. You will need to run "npm install" on a machine with npm and then copy the files to the Wink with SSH. i.e. 
+```scp -r ~/wink-mqtt/ root@[wink hub ip address]:/opt/local_control/wink-mqtt/```
 
 ##How do I root the Wink Hub?
 Matt Carrier has a good artical on rooting and getting SSH access to the Wink Hub with the UART method https://mattcarrier.com/post/hacking-the-winkhub-part-1/
+https://www.exploitee.rs/index.php/Wink_Hub%E2%80%8B%E2%80%8B
 
 ##How wink-mqtt works
 wink-mqttt uses the "aprontest" binary on the Wink Hub to communicate with the Z-Wave, Zigbee and Lutron radios. Each paired device is given a MasterID. wink-hub subscribes to an MQTT server for 'set' events. Topics are organized by 'home/[MASTERID]/[ATTRIBUTE]/set' ```mosquitto_pub -t 'home/20/3/set' -v 'TRUE'```
