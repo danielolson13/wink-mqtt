@@ -4,7 +4,7 @@ var fs = require("fs");
 var Tail = require('always-tail');
 
 var client = mqtt.connect('mqtt://192.168.0.6');
-var deviceStatus = [];
+var deviceStatus = {};
 var aprondatabase = '/database/apron.db';
 var filename = "/tmp/all.log";
 var timer;
@@ -65,19 +65,24 @@ var checkDatabase = function() {
             for (var i = 0; i < lines.length; i++) {
                 var s = lines[i].split(",");
                 var mqttTerm = baseMQTT + '/' + s[0] + '/' + s[1];
+
                 if (mqttTerm in deviceStatus) {
-                    if (deviceStatus[mqttTerm] !== s[2]) {
+                    //console.log(mqttTerm + ':' + deviceStatus[mqttTerm] + ':' + s[2]);
+                    if (deviceStatus[mqttTerm]!== s[2]) {
+                        //console.log('different#############################################');
                         deviceStatus[mqttTerm] = s[2];
                         publishStatus(baseMQTT, s[0], s[1], s[2]);
                     }
-                } else {
+                } else if(s.length == 3) {
                     deviceStatus[mqttTerm] = s[2];
                     publishStatus(baseMQTT, s[0], s[1], s[2]);
                 }
             }
+            
         }
         //manual check of database every 60 seconds, incase we missed an update in the log
         timer = setTimeout(checkDatabase, 60000);
+        lines = s = mqttTerm = theexec = null;
     });
 
 };
