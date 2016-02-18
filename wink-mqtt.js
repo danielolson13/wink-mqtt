@@ -2,12 +2,21 @@ var mqtt = require('mqtt');
 var cp = require('child_process');
 var fs = require("fs");
 var Tail = require('always-tail');
+var mqttBrokerIP = '192.168.0.6';
+var mqttBrokerPort = '1883';
+var mqttusername = 'olson13';
+var mqttpassword = '';
 
-var client = mqtt.connect('mqtt://192.168.0.6');
+var client = mqtt.createClient(mqttBrokerPort, mqttBrokerIP, {username: mqttusername, password: mqttpassword});
 var deviceStatus = {};
+// ******* apron database location for 2.19 firmware ********
 var aprondatabase = '/database/apron.db';
+// ******* apron database location for 2.49 firmware ************
+var aprondatabase = '/var/lib/database/apron.db';
+
 var filename = "/tmp/all.log";
 var timer;
+var notLocked = true;
 
 var baseMQTT = 'home';
 var subscribeTopic = '+/+/+/set';
@@ -54,6 +63,8 @@ var setStatus = function(ar, v) {
     publishStatus(ar[0], ar[1], ar[2], v);
 };
 var checkDatabase = function() {
+    if(notLocked){
+        notLocked = false;
     var sql = 'select d.masterId, s.attributeId, s.value_GET FROM zigbeeDeviceState AS s,zigbeeDevice AS d WHERE d.globalId=s.globalId AND s.attributeId IN (1,2) UNION select d.masterId, s.attributeId, s.value_SET FROM zwaveDeviceState AS s,zwaveDevice AS d WHERE d.nodeId=s.nodeId AND s.attributeId IN (2,3,7,8);';
     var options = {
         timeout: 10000,
@@ -61,6 +72,7 @@ var checkDatabase = function() {
     };
     var theexec = cp.execFile('sqlite3', ['-csv', aprondatabase, sql], options, function(error, stdout, stderr) {
         if (stdout !== null) {
+            notLocked = true;
             var lines = stdout.trim().split("\n");
             for (var i = 0; i < lines.length; i++) {
                 var s = lines[i].split(",");
@@ -81,10 +93,10 @@ var checkDatabase = function() {
             
         }
         //manual check of database every 60 seconds, incase we missed an update in the log
-        timer = setTimeout(checkDatabase, 60000);
+        //timer = setTimeout(checkDatabase, 60000);
         lines = s = mqttTerm = theexec = null;
     });
-
+}
 };
 
 client.on('connect', function() {
