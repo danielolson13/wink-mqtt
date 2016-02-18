@@ -4,7 +4,7 @@ var fs = require("fs");
 var Tail = require('always-tail');
 var mqttBrokerIP = '192.168.0.6';
 var mqttBrokerPort = '1883';
-var mqttusername = 'olson13';
+var mqttusername = '';
 var mqttpassword = '';
 
 var client = mqtt.createClient(mqttBrokerPort, mqttBrokerIP, {username: mqttusername, password: mqttpassword});
