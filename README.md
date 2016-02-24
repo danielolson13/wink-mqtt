@@ -8,7 +8,7 @@ To have wink-mqtt.js application run at start up copy the "mqtt" start up script
 You will want to also use monit to monitor if the wink-mqtt process is running and restart if it crashes. ```cat /opt/wink-mqtt/monit-mqtt >> /etc/monitrc```
 
 ##How do I root the Wink Hub?
-Matt Carrier has a good artical on rooting and getting SSH access to the Wink Hub with the UART method https://mattcarrier.com/post/hacking-the-winkhub-part-1/
+Matt Carrier has a good article on rooting and getting SSH access to the Wink Hub with the UART method https://mattcarrier.com/post/hacking-the-winkhub-part-1/
 https://www.exploitee.rs/index.php/Wink_Hub%E2%80%8B%E2%80%8B
 
 ##How wink-mqtt works
