@@ -3,7 +3,7 @@ Enable local-control of Rooted Wink Hub running 2.49 firmware with MQTT. Integra
 
 The Wink Hub version 2.49 firmware includes NodeJS, but not npm. You will need to run "npm install" on a machine with npm and then copy the files to the Wink with SSH. i.e. 
 ```scp -r ~/wink-mqtt/ root@[wink hub ip address]:/opt/wink-mqtt/```
-To have wink-mqtt.js application run at starup copy the "mqtt" startup script to /etc/rc.d/init.d/mqtt ```cp /opt/wink-mqtt/mqtt /etc/rc.d/init.d/mqtt```
+To have wink-mqtt.js application run at start up copy the "mqtt" start up script to /etc/rc.d/init.d/mqtt ```cp /opt/wink-mqtt/mqtt /etc/rc.d/init.d/mqtt```
 ```chmod 755 /etc/rc.d/init.d/mqtt```
 You will want to also use monit to monitor if the wink-mqtt process is running and restart if it crashes. ```cat /opt/wink-mqtt/monit-mqtt >> /etc/monitrc```
 
