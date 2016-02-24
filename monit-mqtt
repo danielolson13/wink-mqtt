@@ -1,0 +1,4 @@
+check process wink-mqtt matching "wink-mqtt"
+    start program = "/etc/rc.d/init.d/mqtt start"
+    stop program = "/etc/rc.d/init.d/mqtt stop"
+
