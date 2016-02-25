@@ -10,9 +10,11 @@ var zigbeeAttributes = '1,2';
 var zwaveAttributes = '2,3,7,8';
 var sqlQuery = 'select d.masterId, s.attributeId, s.value_GET FROM zigbeeDeviceState AS s,zigbeeDevice AS d WHERE d.globalId=s.globalId AND s.attributeId IN (' + zigbeeAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM zwaveDeviceState AS s,zwaveDevice AS d WHERE d.nodeId=s.nodeId AND s.attributeId IN (' + zwaveAttributes + ');';
 
-var client = mqtt.createClient(mqttBrokerPort, mqttBrokerIP, {
+var client = mqtt.connect('mqtt://' + mqttBrokerIP,{
     username: mqttusername,
-    password: mqttpassword
+    password: mqttpassword,
+    keepalive: 120,
+    port: mqttBrokerPort
 });
 var deviceStatus = {};
 // ******* apron database location for 2.19 firmware ********
@@ -79,7 +81,7 @@ var checkDatabase = function() {
         };
         var theexec = cp.execFile('sqlite3', ['-csv', aprondatabase, sqlQuery], options, function(error, stdout, stderr) {
             if (stdout !== null) {
-                notLocked = true;
+                
                 var lines = stdout.trim().split("\n");
                 for (var i = 0; i < lines.length; i++) {
                     var s = lines[i].split(",");
@@ -97,7 +99,7 @@ var checkDatabase = function() {
                         publishStatus(baseMQTT, s[0], s[1], s[2]);
                     }
                 }
-
+		notLocked = true;
             }
             //manual check of database every 60 seconds, incase we missed an update in the log
             //timer = setTimeout(checkDatabase, 60000);
