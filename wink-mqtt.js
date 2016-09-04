@@ -75,13 +75,14 @@ var setStatus = function(ar, v) {
 var checkDatabase = function() {
     if (notLocked) {
         notLocked = false;
+        refreshDBLocation();
         var options = {
             timeout: 10000,
             killSignal: 'SIGKILL'
         };
         var theexec = cp.execFile('sqlite3', ['-csv', aprondatabase, sqlQuery], options, function(error, stdout, stderr) {
             if (stdout !== null) {
-                
+
                 var lines = stdout.trim().split("\n");
                 for (var i = 0; i < lines.length; i++) {
                     var s = lines[i].split(",");
@@ -105,6 +106,42 @@ var checkDatabase = function() {
             //timer = setTimeout(checkDatabase, 60000);
             lines = s = mqttTerm = theexec = null;
         });
+    }
+};
+var refreshDBLocation = function () {
+    var dir = '/tmp/database';
+    var regexp = new RegExp('.*\.db');
+
+    var fs = require("fs"),
+    path = require('path'),
+    newest = null,
+    files = fs.readdirSync(dir),
+    one_matched = 0,
+    i;
+
+    for (i = 0; i < files.length; i++) {
+
+        if (regexp.test(files[i]) == false)
+            continue
+        else if (one_matched == 0) {
+            newest = files[i];
+            one_matched = 1;
+            continue
+        }
+
+        f1_time = fs.statSync(path.join(dir, files[i])).mtime.getTime()
+        f2_time = fs.statSync(path.join(dir, newest)).mtime.getTime()
+        if (f1_time > f2_time) {
+          newest = files[i];
+        }
+    }
+
+    if (newest != null){
+      var newDBfile = dir + '/' + newest;
+      if (aprondatabase != newDBfile) {
+        console.log('DB changed from ' + aprondatabase + ' to ' + newDBfile);
+        aprondatabase = newDBfile;
+      }
     }
 };
 
