@@ -2,13 +2,19 @@ var mqtt = require('mqtt');
 var cp = require('child_process');
 var fs = require("fs");
 var Tail = require('always-tail');
+
+// Change the following to fit your setup
 var mqttBrokerIP = '192.168.0.6';
 var mqttBrokerPort = '1883';
 var mqttusername = '';
 var mqttpassword = '';
+var baseMQTT = 'home';
+var subscribeTopic = '+/+/+/set';
 var zigbeeAttributes = '1,2';
 var zwaveAttributes = '2,3,7,8';
-var sqlQuery = 'select d.masterId, s.attributeId, s.value_GET FROM zigbeeDeviceState AS s,zigbeeDevice AS d WHERE d.globalId=s.globalId AND s.attributeId IN (' + zigbeeAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM zwaveDeviceState AS s,zwaveDevice AS d WHERE d.nodeId=s.nodeId AND s.attributeId IN (' + zwaveAttributes + ');';
+var lutronAttributes = '1';
+//
+var sqlQuery = 'select d.masterId, s.attributeId, s.value_GET FROM zigbeeDeviceState AS s,zigbeeDevice AS d WHERE d.globalId=s.globalId AND s.attributeId IN (' + zigbeeAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM zwaveDeviceState AS s,zwaveDevice AS d WHERE d.nodeId=s.nodeId AND s.attributeId IN (' + zwaveAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM lutronDeviceState AS s,lutronDevice AS d WHERE d.lNodeId=s.lNodeId AND s.attributeId IN (' + lutronAttributes + ');';
 
 var client = mqtt.connect('mqtt://' + mqttBrokerIP,{
     username: mqttusername,
@@ -18,16 +24,14 @@ var client = mqtt.connect('mqtt://' + mqttBrokerIP,{
 });
 var deviceStatus = {};
 // ******* apron database location for 2.19 firmware ********
-var aprondatabase = '/database/apron.db';
-// ******* apron database location for 2.49 firmware ************
+//var aprondatabase = '/database/apron.db';
+// ******* apron database location for 2.49 and up firmware ************
 var aprondatabase = '/var/lib/database/apron.db';
 
+// Log file we are tailing to get device updates
 var filename = "/tmp/all.log";
 
 var notLocked = true;
-
-var baseMQTT = 'home';
-var subscribeTopic = '+/+/+/set';
 
 if (!fs.existsSync(filename)) {
     fs.writeFileSync(filename, "");
