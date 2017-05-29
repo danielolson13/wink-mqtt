@@ -1,32 +1,27 @@
 {
   "name": "wink-mqtt",
-  "version": "0.0.1",
-  "description": "Node.js example illustrating how to write a RESTful API using the node-restify library.",
+  "version": "0.1.0",
+  "description": "Wink Hub MQTT bridge",
   "dependencies": {
-    "always-tail": "^0.2.0",
-    "forever": "^0.15.1",
-    "mqtt": "^1.6.3"
+    "mqtt": "^1.14.1"
   },
-  "engine": "node 0.6.x",
-  "main": "mqtt.js",
-  "devDependencies": {},
+  "bundledDependencies": ["mqtt"],
+  "engines": {
+    "node": ">=0.10.45"
+  },
+  "main": "wink-mqtt.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/danielolson13/wink-mqtt.git"
   },
   "keywords": [
     "MQTT",
-    "Wink",
-    "Hub",
-    "2.19",
-    "local",
-    "control",
-    "nodejs"
+    "Wink"
   ],
   "author": "Dan Olson",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/danielolson13/wink-mqtt/issues"
   },
-  "homepage": "https://github.com/danielolson13/wink-mqtt#readme"
+  "homepage": "https://github.com/danielolson13/wink-mqtt"
 }

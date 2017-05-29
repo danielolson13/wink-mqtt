@@ -1,161 +1,91 @@
-var mqtt = require('mqtt');
-var cp = require('child_process');
-var fs = require("fs");
-var Tail = require('always-tail');
 
-// Change the following to fit your setup
-var mqttBrokerIP = '192.168.0.6';
-var mqttBrokerPort = '1883';
-var mqttusername = '';
-var mqttpassword = '';
-var baseMQTT = 'home';
-var subscribeTopic = '+/+/+/set';
-var zigbeeAttributes = '1,2';
-var zwaveAttributes = '2,3,7,8';
-var lutronAttributes = '1';
-//
-var sqlQuery = 'select d.masterId, s.attributeId, s.value_GET FROM zigbeeDeviceState AS s,zigbeeDevice AS d WHERE d.globalId=s.globalId AND s.attributeId IN (' + zigbeeAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM zwaveDeviceState AS s,zwaveDevice AS d WHERE d.nodeId=s.nodeId AND s.attributeId IN (' + zwaveAttributes + ') UNION select d.masterId, s.attributeId, s.value_SET FROM lutronDeviceState AS s,lutronDevice AS d WHERE d.lNodeId=s.lNodeId AND s.attributeId IN (' + lutronAttributes + ');';
+var mqtt = require('mqtt')
+var readline = require('readline')
+var child_process = require('child_process')
 
-var client = mqtt.connect('mqtt://' + mqttBrokerIP,{
-    username: mqttusername,
-    password: mqttpassword,
-    keepalive: 120,
-    port: mqttBrokerPort
-});
-var deviceStatus = {};
-// ******* apron database location for 2.19 firmware ********
-//var aprondatabase = '/database/apron.db';
-// ******* apron database location for 2.49 and up firmware ************
-var aprondatabase = '/var/lib/database/apron.db';
-
-// Log file we are tailing to get device updates
-var filename = "/tmp/all.log";
-
-var notLocked = true;
-
-if (!fs.existsSync(filename)) {
-    fs.writeFileSync(filename, "");
+function intEnv (name, def) {
+  var val = parseInt(process.env[name], 10)
+  return isNaN(val) ? def : val
 }
 
-var tail = new Tail(filename, '\n');
-tail.on('line', function(data) {
-    if (data.indexOf('state changed in device') > 0) {
-        checkDatabase();
-    }
-});
+var MQTT_SERVER = process.env.MQTT_SERVER || 'mqtt://localhost'
+var TOPIC_BASE = process.env.WINK_MQTT_TOPIC_BASE || 'home'
+var APRON_BIN = process.env.WINK_MQTT_APRON_BIN || '/usr/sbin/aprontest'
+var APRON_TIMEOUT = intEnv('WINK_MQTT_APRON_TIMEOUT', 10000)
+var DELAY = intEnv('WINK_MQTT_DELAY', 100)
+var DEBOUNCE = intEnv('WINK_MQTT_DEBOUNCE', 1000)
 
-tail.on('error', function(data) {
-    console.log("error:", data);
-});
+var client
+var cache = {}
+var syncing = {}
 
-var publishStatus = function(d, m, t, v) {
-    deviceStatus[d + '/' + m + '/' + t] = v;
-    client.publish(d + '/' + m + '/' + t, v, {
-        retain: true
-    });
-};
-var runApron = function(args) {
-    if (args.length) {
-        var options = {
-            timeout: 10000,
-            killSignal: 'SIGKILL'
-        };
-        cp.execFile('aprontest', args, options, function(error, stdout, stderr) {
-            return (stdout);
-        });
-    }
+function bail (err) {
+  if (!err) return process.exit(0)
+  console.error(err)
+  process.exit(1)
 }
-var setStatus = function(ar, v) {
-    if (ar[0] == 'group') {
-        var args = ['-u', '-x', ar[1], '-t', ar[2], '-v', v];
-    } else if (ar[0] == baseMQTT) {
-        var args = ['-u', '-m', ar[1], '-t', ar[2], '-v', v];
+
+function apron (args, done) {
+  child_process.execFile(APRON_BIN, args, {
+    timeout: APRON_TIMEOUT,
+    killSignal: 'SIGKILL'
+  }, function (err, stdout, stderr) {
+    if (err) return bail(err)
+    if (done) done(stdout, stderr)
+  })
+}
+
+function publish (dev, key, val) {
+  var topic = [TOPIC_BASE, dev, key].join('/')
+  if (!client || !client.connected || cache[topic] === val) return
+  cache[topic] = val
+  client.publish(topic, val, {retain: true})
+}
+
+function _sync (dev) {
+  var start = syncing[dev]
+  apron(['-l', '-m', dev], function (stdout) {
+    var m, re = /^\s*(\d+) \|(?:[^|]+\|){3}\s*([^|]+) \|.*$/gm
+    while (m = re.exec(stdout)) {
+      publish(dev, m[1], m[2])
     }
-    if (typeof args !== 'undefined') {
-        runApron(args);
-    }
-    publishStatus(ar[0], ar[1], ar[2], v);
-};
-var checkDatabase = function() {
-    if (notLocked) {
-        notLocked = false;
-        refreshDBLocation();
-        var options = {
-            timeout: 10000,
-            killSignal: 'SIGKILL'
-        };
-        var theexec = cp.execFile('sqlite3', ['-csv', aprondatabase, sqlQuery], options, function(error, stdout, stderr) {
-            if (stdout !== null) {
+    if (syncing[dev] > start) return setTimeout(_sync.bind(undefined, dev), DEBOUNCE)
+    delete syncing[dev]
+  })
+}
 
-                var lines = stdout.trim().split("\n");
-                for (var i = 0; i < lines.length; i++) {
-                    var s = lines[i].split(",");
-                    var mqttTerm = baseMQTT + '/' + s[0] + '/' + s[1];
+function sync (dev) {
+  var sync = !syncing[dev]
+  syncing[dev] = (syncing[dev] || 0) + 1
+  if (sync) _sync(dev)
+}
 
-                    if (mqttTerm in deviceStatus) {
-                        //console.log(mqttTerm + ':' + deviceStatus[mqttTerm] + ':' + s[2]);
-                        if (deviceStatus[mqttTerm] !== s[2]) {
-                            //console.log('different#############################################');
-                            deviceStatus[mqttTerm] = s[2];
-                            publishStatus(baseMQTT, s[0], s[1], s[2]);
-                        }
-                    } else if (s.length == 3) {
-                        deviceStatus[mqttTerm] = s[2];
-                        publishStatus(baseMQTT, s[0], s[1], s[2]);
-                    }
-                }
-		notLocked = true;
-            }
-            //manual check of database every 60 seconds, incase we missed an update in the log
-            //timer = setTimeout(checkDatabase, 60000);
-            lines = s = mqttTerm = theexec = null;
-        });
-    }
-};
-var refreshDBLocation = function () {
-    var dir = '/tmp/database';
-    var regexp = new RegExp('.*\.db');
+function syncAll () {
+  apron(['-l'], function (stdout) {
+    stdout.split('\n\n')[0].split('\n').forEach(function (line, i) {
+      var m = line.match(/^\s*(\d+) \|/)
+      if (m) setTimeout(sync.bind(undefined, m[1]), i * DELAY)
+    })
+  })
+}
 
-    var fs = require("fs"),
-    path = require('path'),
-    newest = null,
-    files = fs.readdirSync(dir),
-    one_matched = 0,
-    i;
+client = mqtt.connect(MQTT_SERVER, {keepalive: 120})
+  .on('error', bail)
+  .on('close', function () {
+    cache = {}
+  })
+  .on('connect', function () {
+    client.subscribe(TOPIC_BASE + '/+/+/set')
+    syncAll()
+  })
+  .on('message', function (topic, msg) {
+    var m = topic.replace(TOPIC_BASE, '').split('/')
+    apron(['-u', '-m', m[1], '-t', m[2], '-v', msg.toString()])
+  })
 
-    for (i = 0; i < files.length; i++) {
-
-        if (regexp.test(files[i]) == false)
-            continue
-        else if (one_matched == 0) {
-            newest = files[i];
-            one_matched = 1;
-            continue
-        }
-
-        f1_time = fs.statSync(path.join(dir, files[i])).mtime.getTime()
-        f2_time = fs.statSync(path.join(dir, newest)).mtime.getTime()
-        if (f1_time > f2_time) {
-          newest = files[i];
-        }
-    }
-
-    if (newest != null){
-      var newDBfile = dir + '/' + newest;
-      if (aprondatabase != newDBfile) {
-        console.log('DB changed from ' + aprondatabase + ' to ' + newDBfile);
-        aprondatabase = newDBfile;
-      }
-    }
-};
-
-client.on('connect', function() {
-    client.subscribe(subscribeTopic);
-    checkDatabase();
-});
-
-client.on('message', function(topic, message) {
-    setStatus(topic.split('/'), message.toString());
-});
-
-tail.watch();
+readline.createInterface({input: process.stdin, output: process.stdout})
+  .on('close', bail)
+  .on('line', function (line) {
+    var m = line.match(/state changed in device (\d+)$/)
+    if (m) sync(m[1])
+  })
